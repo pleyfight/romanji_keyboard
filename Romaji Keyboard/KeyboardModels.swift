@@ -23,13 +23,22 @@ enum DiacriticType: Equatable, Hashable {
 // MARK: - Kana Key Model
 
 struct KanaKey: Hashable {
-    let base: String                    // Romanized base (e.g., "ka")
-    let normalKana: String              // Standard kana (e.g., "か")
-    let smallKana: String               // Small variant (e.g., "ヵ")
-    let upKana: String                  // Flick up variant
-    let rightKana: String               // Flick right variant
-    let downKana: String                // Flick down variant
-    let leftKana: String                // Flick left variant
+    let label: String                   // Display Label (e.g. "か")
+    let subLabel: String                // Sub Label (e.g. "ka")
+    
+    // Romaji Outputs for flicks
+    let centerRomaji: String
+    let upRomaji: String
+    let rightRomaji: String
+    let downRomaji: String
+    let leftRomaji: String
+    
+    // Display characters (for the flick guides and button face)
+    let centerDisplay: String
+    let upDisplay: String
+    let rightDisplay: String
+    let downDisplay: String
+    let leftDisplay: String
 }
 
 // MARK: - Keyboard Input Model (Observable)
@@ -66,15 +75,6 @@ class KeyboardInputModel: ObservableObject {
             let (converted, remaining) = RomajiConverter.convert(romajiBuffer)
             
             if !converted.isEmpty {
-                // If we converted something, we need to "commit" it.
-                // However, the proxy (and UI) might be showing the "k" "ka" letters during typing?
-                // Standard behavior: The Composition Text shows "k", then "ka", then changes to "か".
-                // Since we don't have full `setMarkedText` control (requires custom UIInputViewController logic beyond proxy),
-                // we'll use a simpler approach:
-                // 1. We insert the raw text into the proxy? No, that messes up the document.
-                // 2. We ONLY insert the FINAL converted Kana.
-                // 3. We show the BUFFER in our own floating view (already planned in next step).
-                
                 textDocumentProxy.insertText(converted)
                 romajiBuffer = remaining
             }
@@ -107,22 +107,46 @@ class KeyboardInputModel: ObservableObject {
 struct KanaKeyboardLayout {
     static let standardJapanese: [[KanaKey]] = [
         [
-            KanaKey(base: "a", normalKana: "あ", smallKana: "ぁ", upKana: "い", rightKana: "う", downKana: "え", leftKana: "お"),
-            KanaKey(base: "ka", normalKana: "か", smallKana: "ヵ", upKana: "き", rightKana: "く", downKana: "け", leftKana: "こ"),
-            KanaKey(base: "sa", normalKana: "さ", smallKana: "さ", upKana: "し", rightKana: "す", downKana: "せ", leftKana: "そ"),
-            KanaKey(base: "ta", normalKana: "た", smallKana: "っ", upKana: "ち", rightKana: "つ", downKana: "て", leftKana: "と")
+            KanaKey(label: "あ", subLabel: "a",
+                    centerRomaji: "a", upRomaji: "i", rightRomaji: "u", downRomaji: "e", leftRomaji: "o",
+                    centerDisplay: "あ", upDisplay: "い", rightDisplay: "う", downDisplay: "え", leftDisplay: "お"),
+            KanaKey(label: "か", subLabel: "ka",
+                    centerRomaji: "ka", upRomaji: "ki", rightRomaji: "ku", downRomaji: "ke", leftRomaji: "ko",
+                    centerDisplay: "か", upDisplay: "き", rightDisplay: "く", downDisplay: "け", leftDisplay: "こ"),
+            KanaKey(label: "さ", subLabel: "sa",
+                    centerRomaji: "sa", upRomaji: "shi", rightRomaji: "su", downRomaji: "se", leftRomaji: "so",
+                    centerDisplay: "さ", upDisplay: "し", rightDisplay: "す", downDisplay: "せ", leftDisplay: "そ"),
+            KanaKey(label: "た", subLabel: "ta",
+                    centerRomaji: "ta", upRomaji: "chi", rightRomaji: "tsu", downRomaji: "te", leftRomaji: "to",
+                    centerDisplay: "た", upDisplay: "ち", rightDisplay: "つ", downDisplay: "て", leftDisplay: "と")
         ],
         [
-            KanaKey(base: "na", normalKana: "な", smallKana: "な", upKana: "に", rightKana: "ぬ", downKana: "ね", leftKana: "の"),
-            KanaKey(base: "ha", normalKana: "は", smallKana: "は", upKana: "ひ", rightKana: "ふ", downKana: "へ", leftKana: "ほ"),
-            KanaKey(base: "ma", normalKana: "ま", smallKana: "ま", upKana: "み", rightKana: "む", downKana: "め", leftKana: "も"),
-            KanaKey(base: "ya", normalKana: "や", smallKana: "ゃ", upKana: "ゆ", rightKana: "ゆ", downKana: "ょ", leftKana: "よ")
+            KanaKey(label: "な", subLabel: "na",
+                    centerRomaji: "na", upRomaji: "ni", rightRomaji: "nu", downRomaji: "ne", leftRomaji: "no",
+                    centerDisplay: "な", upDisplay: "に", rightDisplay: "ぬ", downDisplay: "ね", leftDisplay: "の"),
+            KanaKey(label: "は", subLabel: "ha",
+                    centerRomaji: "ha", upRomaji: "hi", rightRomaji: "fu", downRomaji: "he", leftRomaji: "ho",
+                    centerDisplay: "は", upDisplay: "ひ", rightDisplay: "ふ", downDisplay: "へ", leftDisplay: "ほ"),
+            KanaKey(label: "ま", subLabel: "ma",
+                    centerRomaji: "ma", upRomaji: "mi", rightRomaji: "mu", downRomaji: "me", leftRomaji: "mo",
+                    centerDisplay: "ま", upDisplay: "み", rightDisplay: "む", downDisplay: "め", leftDisplay: "も"),
+            KanaKey(label: "や", subLabel: "ya",
+                    centerRomaji: "ya", upRomaji: "yu", rightRomaji: "yu", downRomaji: "yo", leftRomaji: "yo", // Y row is special
+                    centerDisplay: "や", upDisplay: "ゆ", rightDisplay: "ゆ", downDisplay: "よ", leftDisplay: "よ")
         ],
         [
-            KanaKey(base: "ra", normalKana: "ら", smallKana: "ら", upKana: "り", rightKana: "る", downKana: "れ", leftKana: "ろ"),
-            KanaKey(base: "wa", normalKana: "わ", smallKana: "を", upKana: "ゐ", rightKana: "ん", downKana: "ゑ", leftKana: "を"),
-            KanaKey(base: "ga", normalKana: "が", smallKana: "が", upKana: "ぎ", rightKana: "ぐ", downKana: "げ", leftKana: "ご"),
-            KanaKey(base: "za", normalKana: "ざ", smallKana: "ざ", upKana: "じ", rightKana: "ず", downKana: "ぜ", leftKana: "ぞ")
+            KanaKey(label: "ら", subLabel: "ra",
+                    centerRomaji: "ra", upRomaji: "ri", rightRomaji: "ru", downRomaji: "re", leftRomaji: "ro",
+                    centerDisplay: "ら", upDisplay: "り", rightDisplay: "る", downDisplay: "れ", leftDisplay: "ろ"),
+            KanaKey(label: "わ", subLabel: "wa",
+                    centerRomaji: "wa", upRomaji: "wo", rightRomaji: "nn", downRomaji: "wa", leftRomaji: "wo", // w row special
+                    centerDisplay: "わ", upDisplay: "を", rightDisplay: "ん", downDisplay: "わ", leftDisplay: "を"),
+            KanaKey(label: "が", subLabel: "ga", // Keeping the dakuten keys or generic? 
+                    centerRomaji: "ga", upRomaji: "gi", rightRomaji: "gu", downRomaji: "ge", leftRomaji: "go",
+                    centerDisplay: "が", upDisplay: "ぎ", rightDisplay: "ぐ", downDisplay: "げ", leftDisplay: "ご"),
+            KanaKey(label: "ざ", subLabel: "za",
+                    centerRomaji: "za", upRomaji: "ji", rightRomaji: "zu", downRomaji: "ze", leftRomaji: "zo",
+                    centerDisplay: "ざ", upDisplay: "じ", rightDisplay: "ず", downDisplay: "ぜ", leftDisplay: "ぞ")
         ]
     ]
 }
