@@ -85,9 +85,10 @@ struct ABCKeyboardView: View {
     
     @ViewBuilder
     private var letterGridView: some View {
-        ForEach(Array(ABCKeyboardLayout.qwerty.letterRows.enumerated()), id: \.offset) { _, row in
+        ForEach(0..<ABCKeyboardLayout.qwerty.letterRows.count, id: \.self) { rowIndex in
             HStack(spacing: theme.dimensions.buttonSpacing) {
-                ForEach(Array(row.enumerated()), id: \.offset) { _, letter in
+                ForEach(0..<ABCKeyboardLayout.qwerty.letterRows[rowIndex].count, id: \.self) { letterIndex in
+                    let letter = ABCKeyboardLayout.qwerty.letterRows[rowIndex][letterIndex]
                     LetterKeyButton(
                         letter: letter,
                         isShiftActive: isShiftActive,
@@ -123,9 +124,10 @@ struct NumbersKeyboardView: View {
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
-            ForEach(Array(NumericKeyboardLayout.standard.numberRows.enumerated()), id: \.offset) { _, row in
+            ForEach(0..<NumericKeyboardLayout.standard.numberRows.count, id: \.self) { rowIndex in
                 HStack(spacing: theme.dimensions.buttonSpacing) {
-                    ForEach(Array(row.enumerated()), id: \.offset) { _, digit in
+                    ForEach(0..<NumericKeyboardLayout.standard.numberRows[rowIndex].count, id: \.self) { digitIndex in
+                        let digit = NumericKeyboardLayout.standard.numberRows[rowIndex][digitIndex]
                         CharacterKeyButton(character: digit, theme: theme) {
                             inputModel.insertText(digit)
                         }
@@ -144,9 +146,10 @@ struct SymbolsKeyboardView: View {
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
-            ForEach(Array(SymbolKeyboardLayout.standard.symbolRows.enumerated()), id: \.offset) { _, row in
+            ForEach(0..<SymbolKeyboardLayout.standard.symbolRows.count, id: \.self) { rowIndex in
                 HStack(spacing: theme.dimensions.buttonSpacing) {
-                    ForEach(Array(row.enumerated()), id: \.offset) { _, symbol in
+                    ForEach(0..<SymbolKeyboardLayout.standard.symbolRows[rowIndex].count, id: \.self) { symbolIndex in
+                        let symbol = SymbolKeyboardLayout.standard.symbolRows[rowIndex][symbolIndex]
                         CharacterKeyButton(character: symbol, theme: theme) {
                             inputModel.insertText(symbol)
                         }
@@ -237,7 +240,12 @@ struct KanaKeyButton: View {
                     .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
             )
         }
-        .frame(minHeight: theme.dimensions.keyHeight)moji: String
+        .frame(minHeight: theme.dimensions.keyHeight)
+    }
+}
+
+struct EmojiKeyButton: View {
+    let emoji: String
     let theme: KeyboardTheme
     let onSelect: () -> Void
     
@@ -249,6 +257,76 @@ struct KanaKeyButton: View {
                 .frame(height: theme.dimensions.keyHeight)
                 .background(theme.backgroundColor.key)
                 .cornerRadius(theme.dimensions.cornerRadius)
+        }
+    }
+}
+
+struct LetterKeyButton: View {
+    let letter: String
+    let isShiftActive: Bool
+    let theme: KeyboardTheme
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            Text(isShiftActive ? letter.uppercased() : letter)
+                .font(theme.typography.keyFont)
+                .frame(maxWidth: .infinity)
+                .frame(height: theme.dimensions.keyHeightCompact)
+                .foregroundColor(theme.textColor.primary)
+                .background(theme.backgroundColor.key)
+                .cornerRadius(theme.dimensions.cornerRadius)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
+                )
+        }
+    }
+}
+
+struct ShiftKeyButton: View {
+    let isActive: Bool
+    let theme: KeyboardTheme
+    let onToggle: () -> Void
+    
+    var body: some View {
+        Button(action: onToggle) {
+            Text("⇧")
+                .font(theme.typography.keyFont)
+                .frame(maxWidth: .infinity)
+                .frame(height: theme.dimensions.keyHeightCompact)
+                .foregroundColor(isActive ? theme.textColor.accent : theme.textColor.primary)
+                .background(isActive ? theme.backgroundColor.keyPressed : theme.backgroundColor.key)
+                .cornerRadius(theme.dimensions.cornerRadius)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                        .stroke(
+                            isActive ? theme.borderColor.active : theme.borderColor.standard,
+                            lineWidth: theme.dimensions.borderWidth
+                        )
+                )
+        }
+    }
+}
+
+struct CharacterKeyButton: View {
+    let character: String
+    let theme: KeyboardTheme
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            Text(character)
+                .font(theme.typography.keyFont)
+                .frame(maxWidth: .infinity)
+                .frame(height: theme.dimensions.keyHeight)
+                .foregroundColor(theme.textColor.primary)
+                .background(theme.backgroundColor.key)
+                .cornerRadius(theme.dimensions.cornerRadius)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
+                )
         }
     }
 }
