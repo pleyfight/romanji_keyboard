@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 import Combine
-import Combine
 
 /// Comprehensive design system for keyboard UI.
 /// Supports light and dark themes with automatic system appearance detection.
@@ -188,6 +187,8 @@ struct KeyboardTheme {
 // MARK: - Theme Environment Key & Manager
 
 class ThemeManager: ObservableObject {
+    private static let userDefaultsKey = "keyboardThemeMode"
+
     @Published var themeMode: KeyboardTheme.ThemeMode {
         didSet {
             saveThemePreference()
@@ -198,26 +199,30 @@ class ThemeManager: ObservableObject {
     
     init() {
         // Load saved preference or default to system
-        let savedMode = UserDefaults.standard.string(forKey: "keyboardThemeMode")
-        self.themeMode = KeyboardTheme.ThemeMode(rawValue: savedMode ?? "system") ?? .system
-        
-        self.theme = KeyboardTheme(mode: themeMode)
+        let savedMode = UserDefaults.standard.string(forKey: Self.userDefaultsKey)
+        let initialMode = KeyboardTheme.ThemeMode(rawValue: savedMode ?? "system") ?? .system
+        // Initialize stored properties without referencing self before full initialization
+        self.themeMode = initialMode
+        self.theme = KeyboardTheme(mode: initialMode)
     }
     
-    /// Update theme based on system appearance or user preference
-    func updateTheme() {
+    /// Update theme based on system appearance or user preference.
+    /// If `themeMode` is `.system`, map the provided `systemColorScheme` to `.light`/`.dark`.
+    /// If `systemColorScheme` is nil, default to `.light` for safety.
+    func updateTheme(systemColorScheme: ColorScheme? = nil) {
         let effectiveMode: KeyboardTheme.ThemeMode
-        
         switch themeMode {
         case .light:
             effectiveMode = .light
         case .dark:
             effectiveMode = .dark
         case .system:
-            // Detect system appearance (handled via @Environment in views)
-            effectiveMode = .system
+            if let scheme = systemColorScheme {
+                effectiveMode = (scheme == .dark) ? .dark : .light
+            } else {
+                effectiveMode = .light
+            }
         }
-        
         self.theme = KeyboardTheme(mode: effectiveMode)
     }
     
@@ -229,55 +234,7 @@ class ThemeManager: ObservableObject {
     
     /// Save theme preference to UserDefaults
     private func saveThemePreference() {
-        UserDefaults.standard.set(themeMode.rawValue, forKey: "keyboardThemeMode")
-    }
-}
-
-// MARK: - SwiftUI Environment Extension
-
-struct ThemeManagerKey: EnvironmentKey {
-    static let defaultValue = ThemeManager()
-}
-
-extension EnvironmentValues {
-    var themeManager: ThemeManager {
-        get { self[ThemeManagerKey.self] }
-        set { self[ThemeManagerKey.self] = newValue }
-    }
-}
-
-// Background type for themed backgrounds (must not be nested in a protocol extension)
-enum BackgroundType {
-    case primary
-    case secondary
-}
-
-// MARK: - Theme-Aware View Modifiers
-
-extension View {
-    /// Apply keyboard button styling with theme
-    func themedKeyboardButton(
-        isActive: Bool = false,
-        isPressed: Bool = false,
-        theme: KeyboardTheme
-    ) -> some View {
-        self
-            .foregroundColor(theme.textColor.primary)
-            .background(isPressed ? theme.backgroundColor.keyPressed : theme.backgroundColor.key)
-            .cornerRadius(theme.dimensions.cornerRadius)
-            .overlay(
-                RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                    .stroke(
-                        isActive ? theme.borderColor.active : theme.borderColor.standard,
-                        lineWidth: theme.dimensions.borderWidth
-                    )
-            )
-    }
-    
-    /// Apply themed background
-    func themedBackground(theme: KeyboardTheme, type: BackgroundType = .primary) -> some View {
-        let color = type == .primary ? theme.backgroundColor.primary : theme.backgroundColor.secondary
-        return self.background(color)
+        UserDefaults.standard.set(themeMode.rawValue, forKey: Self.userDefaultsKey)
     }
 }
 

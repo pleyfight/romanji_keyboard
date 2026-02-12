@@ -61,8 +61,8 @@ struct KeyboardRootView: View {
         textDocumentProxy: UITextDocumentProxy,
         themeManager: ThemeManager
     ) {
-        self.inputModel = KeyboardInputModel(textDocumentProxy: textDocumentProxy)
-        self.themeManager = themeManager
+        _inputModel = ObservedObject(wrappedValue: KeyboardInputModel(textDocumentProxy: textDocumentProxy))
+        _themeManager = ObservedObject(wrappedValue: themeManager)
     }
     
     var body: some View {
@@ -72,9 +72,9 @@ struct KeyboardRootView: View {
             specialKeysRow
         }
         .background(theme.backgroundColor.primary)
-        .onAppear(perform: updateThemeForSystemAppearance)
-        .onChange(of: systemColorScheme) { _ in
-            updateThemeForSystemAppearance()
+        .onAppear { updateThemeForSystemAppearance() }
+        .onChange(of: systemColorScheme) { newScheme in
+            updateThemeForSystemAppearance(newScheme)
         }
     }
     
@@ -84,8 +84,10 @@ struct KeyboardRootView: View {
     }
     
     /// Update theme when system appearance changes
-    private func updateThemeForSystemAppearance() {
+    private func updateThemeForSystemAppearance(_ scheme: ColorScheme? = nil) {
         if themeManager.themeMode == .system {
+            themeManager.updateTheme(systemColorScheme: scheme ?? systemColorScheme)
+        } else {
             themeManager.updateTheme()
         }
     }
