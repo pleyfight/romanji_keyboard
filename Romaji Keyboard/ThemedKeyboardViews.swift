@@ -13,17 +13,6 @@ struct KanaKeyboardView: View {
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
-            // Buffer Display
-            if !inputModel.romajiBuffer.isEmpty {
-                Text(inputModel.romajiBuffer)
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(theme.textColor.primary)
-                    .padding(.vertical, 4)
-                    .frame(maxWidth: .infinity)
-                    .background(theme.backgroundColor.secondary)
-                    .cornerRadius(4)
-            }
-            
             kanaGridView
             modifierRowView
         }
@@ -40,8 +29,8 @@ struct KanaKeyboardView: View {
                         isSmallKanaActive: isSmallKanaMode,
                         activeDiacritic: activeDiacritic,
                         theme: theme,
-                        onSelect: { char in
-                            handleKanaSelection(char, activeDiacritic)
+                        onSelect: {
+                            handleKanaSelection(kanaKey, activeDiacritic)
                         }
                     )
                 }
@@ -49,11 +38,28 @@ struct KanaKeyboardView: View {
         }
     }
     
-    // ... modifierRowView ...
+    @ViewBuilder
+    private var modifierRowView: some View {
+        HStack(spacing: theme.dimensions.buttonSpacing) {
+            ModifierToggle(label: "小", isActive: isSmallKanaMode, theme: theme) {
+                isSmallKanaMode.toggle()
+            }
+            ModifierToggle(label: "゛", isActive: activeDiacritic == .dakuten, theme: theme) {
+                activeDiacritic = activeDiacritic == .dakuten ? .none : .dakuten
+            }
+            ModifierToggle(label: "゜", isActive: activeDiacritic == .handakuten, theme: theme) {
+                activeDiacritic = activeDiacritic == .handakuten ? .none : .handakuten
+            }
+            Spacer()
+            SpecialKeyButton(label: "ー", theme: theme) { inputModel.insertText("ー") }
+            SpecialKeyButton(label: "、", theme: theme) { inputModel.insertText("、") }
+            SpecialKeyButton(label: "。", theme: theme) { inputModel.insertText("。") }
+        }
+    }
     
-    private func handleKanaSelection(_ character: String, _ diacritic: DiacriticType) {
-        // Apply diacritic to the specifically selected character (flick result)
-        let finalKana = KanaDiacriticConverter.apply(character, diacritic: diacritic)
+    private func handleKanaSelection(_ kanaKey: KanaKey, _ diacritic: DiacriticType) {
+        let selectedKana = isSmallKanaMode ? kanaKey.smallKana : kanaKey.normalKana
+        let finalKana = KanaDiacriticConverter.apply(selectedKana, diacritic: diacritic)
         inputModel.insertText(finalKana)
         
         if diacritic != .none {
@@ -68,7 +74,6 @@ struct ABCKeyboardView: View {
     @State private var isShiftActive: Bool = false
     
     let theme: KeyboardTheme
-    private let keyboardLayout = ABCKeyboardLayout.qwerty
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
@@ -80,9 +85,9 @@ struct ABCKeyboardView: View {
     
     @ViewBuilder
     private var letterGridView: some View {
-        ForEach(keyboardLayout.letterRows, id: \.self) { row in
+        ForEach(Array(ABCKeyboardLayout.qwerty.letterRows.enumerated()), id: \.offset) { _, row in
             HStack(spacing: theme.dimensions.buttonSpacing) {
-                ForEach(row, id: \.self) { letter in
+                ForEach(Array(row.enumerated()), id: \.offset) { _, letter in
                     LetterKeyButton(
                         letter: letter,
                         isShiftActive: isShiftActive,
@@ -115,13 +120,12 @@ struct ABCKeyboardView: View {
 struct NumbersKeyboardView: View {
     @ObservedObject var inputModel: KeyboardInputModel
     let theme: KeyboardTheme
-    private let layout = NumericKeyboardLayout.standard
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
-            ForEach(layout.numberRows, id: \.self) { row in
+            ForEach(Array(NumericKeyboardLayout.standard.numberRows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: theme.dimensions.buttonSpacing) {
-                    ForEach(row, id: \.self) { digit in
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, digit in
                         CharacterKeyButton(character: digit, theme: theme) {
                             inputModel.insertText(digit)
                         }
@@ -137,13 +141,12 @@ struct NumbersKeyboardView: View {
 struct SymbolsKeyboardView: View {
     @ObservedObject var inputModel: KeyboardInputModel
     let theme: KeyboardTheme
-    private let layout = SymbolKeyboardLayout.standard
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
-            ForEach(layout.symbolRows, id: \.self) { row in
+            ForEach(Array(SymbolKeyboardLayout.standard.symbolRows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: theme.dimensions.buttonSpacing) {
-                    ForEach(row, id: \.self) { symbol in
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, symbol in
                         CharacterKeyButton(character: symbol, theme: theme) {
                             inputModel.insertText(symbol)
                         }
@@ -213,183 +216,28 @@ struct KanaKeyButton: View {
     let isSmallKanaActive: Bool
     let activeDiacritic: DiacriticType
     let theme: KeyboardTheme
-    let onSelect: (String) -> Void
-    
-    // Flick State
-    @State private var dragOffset: CGSize = .zero
-    @State private var isFlicking: Bool = false
-    @State private var selectedDirection: FlickDirection = .none
-    
-    // Models
-    enum FlickDirection {
-        case none, up, down, left, right
-    }
-    
-    private let flickThreshold: CGFloat = 20.0
+    let onSelect: () -> Void
     
     var body: some View {
-        let activeLabel = key.centerDisplay // Simplified for now
-        
-        ZStack {
-            // Main Button Background
-            RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                .fill(isFlicking || selectedDirection != .none ? theme.backgroundColor.keyPressed : theme.backgroundColor.key)
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
-                )
-            
-            // Center Character (Base)
+        Button(action: onSelect) {
             VStack(spacing: 1) {
-                Text(activeLabel)
+                let displayKana = isSmallKanaActive ? key.smallKana : key.normalKana
+                Text(displayKana)
                     .font(theme.typography.keyFont)
-                Text(key.subLabel)
+                Text(key.base)
                     .font(theme.typography.keyLabelFont)
                     .opacity(0.6)
             }
-            .opacity(selectedDirection == .none ? 1.0 : 0.3)
-            
-            // Flick Guides
-            if isFlicking {
-                FlickGuideView(key: key, direction: selectedDirection, theme: theme)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundColor(theme.textColor.primary)
+            .background(theme.backgroundColor.key)
+            .cornerRadius(theme.dimensions.cornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                    .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
+            )
         }
-        .frame(minHeight: theme.dimensions.keyHeight)
-        // ... gestures ...
-    }
-    
-    // ...
-    
-    private func triggerInput(direction: FlickDirection) {
-        let character: String
-        switch direction {
-        case .none: character = key.centerRomaji
-        case .up: character = key.upRomaji
-        case .down: character = key.downRomaji
-        case .left: character = key.leftRomaji
-        case .right: character = key.rightRomaji
-        }
-        
-        onSelect(character)
-    }
-    
-    private func resetState() {
-        isFlicking = false
-        dragOffset = .zero
-        selectedDirection = .none
-    }
-}
-
-// Helper View for Flick Guides
-struct FlickGuideView: View {
-    let key: KanaKey
-    let direction: KanaKeyButton.FlickDirection
-    let theme: KeyboardTheme
-    
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Up
-                if direction == .up || direction == .none {
-                    Text(key.upDisplay).position(x: geo.size.width/2, y: 10)
-                        .font(theme.typography.keyLabelFont)
-                        .foregroundColor(direction == .up ? theme.textColor.accent : theme.textColor.secondary)
-                }
-                // Down
-                if direction == .down || direction == .none {
-                    Text(key.downDisplay).position(x: geo.size.width/2, y: geo.size.height - 10)
-                        .font(theme.typography.keyLabelFont)
-                        .foregroundColor(direction == .down ? theme.textColor.accent : theme.textColor.secondary)
-                }
-                // Left
-                if direction == .left || direction == .none {
-                    Text(key.leftDisplay).position(x: 10, y: geo.size.height/2)
-                        .font(theme.typography.keyLabelFont)
-                        .foregroundColor(direction == .left ? theme.textColor.accent : theme.textColor.secondary)
-                }
-                // Right
-                if direction == .right || direction == .none {
-                    Text(key.rightDisplay).position(x: geo.size.width - 10, y: geo.size.height/2)
-                        .font(theme.typography.keyLabelFont)
-                        .foregroundColor(direction == .right ? theme.textColor.accent : theme.textColor.secondary)
-                }
-            }
-        }
-    }
-}
-
-struct LetterKeyButton: View {
-    let letter: String
-    let isShiftActive: Bool
-    let theme: KeyboardTheme
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            Text(isShiftActive ? letter.uppercased() : letter)
-                .font(theme.typography.keyFont)
-                .frame(maxWidth: .infinity)
-                .frame(height: theme.dimensions.keyHeightCompact)
-                .foregroundColor(theme.textColor.primary)
-                .background(theme.backgroundColor.key)
-                .cornerRadius(theme.dimensions.cornerRadius)
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
-                )
-        }
-    }
-}
-
-struct ShiftKeyButton: View {
-    let isActive: Bool
-    let theme: KeyboardTheme
-    let onToggle: () -> Void
-    
-    var body: some View {
-        Button(action: onToggle) {
-            Text("⇧")
-                .font(theme.typography.keyFont)
-                .frame(maxWidth: .infinity)
-                .frame(height: theme.dimensions.keyHeightCompact)
-                .foregroundColor(isActive ? theme.textColor.accent : theme.textColor.primary)
-                .background(isActive ? theme.backgroundColor.keyPressed : theme.backgroundColor.key)
-                .cornerRadius(theme.dimensions.cornerRadius)
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                        .stroke(
-                            isActive ? theme.borderColor.active : theme.borderColor.standard,
-                            lineWidth: theme.dimensions.borderWidth
-                        )
-                )
-        }
-    }
-}
-
-struct CharacterKeyButton: View {
-    let character: String
-    let theme: KeyboardTheme
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            Text(character)
-                .font(theme.typography.keyFont)
-                .frame(maxWidth: .infinity)
-                .frame(height: theme.dimensions.keyHeight)
-                .foregroundColor(theme.textColor.primary)
-                .background(theme.backgroundColor.key)
-                .cornerRadius(theme.dimensions.cornerRadius)
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
-                )
-        }
-    }
-}
-
-struct EmojiKeyButton: View {
-    let emoji: String
+        .frame(minHeight: theme.dimensions.keyHeight)moji: String
     let theme: KeyboardTheme
     let onSelect: () -> Void
     

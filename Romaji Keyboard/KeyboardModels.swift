@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 // MARK: - Keyboard Modes
 
@@ -49,6 +50,7 @@ struct KanaKey: Hashable {
 /// **O(1)** per operation: direct proxy calls.
 ///
 class KeyboardInputModel: ObservableObject {
+
     private let textDocumentProxy: UITextDocumentProxy
     
     // The current mode of the keyboard (kana/abc/numeric/symbols)
@@ -174,3 +176,4 @@ struct SymbolKeyboardLayout {
         [".",",","?","!","'","#","%","^","*","+"]
     ]
 }
+
