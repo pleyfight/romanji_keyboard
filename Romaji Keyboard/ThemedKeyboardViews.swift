@@ -13,6 +13,17 @@ struct KanaKeyboardView: View {
 
     var body: some View {
         VStack(spacing: theme.dimensions.buttonSpacing) {
+            // Buffer Display
+            if !inputModel.romajiBuffer.isEmpty {
+                Text(inputModel.romajiBuffer)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(theme.textColor.primary)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
+                    .background(theme.backgroundColor.secondary)
+                    .cornerRadius(4)
+            }
+            
             kanaGridView
             modifierRowView
         }
@@ -29,8 +40,8 @@ struct KanaKeyboardView: View {
                         isSmallKanaActive: isSmallKanaMode,
                         activeDiacritic: activeDiacritic,
                         theme: theme,
-                        onSelect: {
-                            handleKanaSelection(kanaKey, activeDiacritic)
+                        onSelect: { char in
+                            handleKanaSelection(char, activeDiacritic)
                         }
                     )
                 }
@@ -38,27 +49,11 @@ struct KanaKeyboardView: View {
         }
     }
     
-    private var modifierRowView: some View {
-        HStack(spacing: theme.dimensions.buttonSpacing) {
-            ModifierToggle(label: "小", isActive: isSmallKanaMode, theme: theme) {
-                isSmallKanaMode.toggle()
-            }
-            ModifierToggle(label: "゛", isActive: activeDiacritic == .dakuten, theme: theme) {
-                activeDiacritic = activeDiacritic == .dakuten ? .none : .dakuten
-            }
-            ModifierToggle(label: "゜", isActive: activeDiacritic == .handakuten, theme: theme) {
-                activeDiacritic = activeDiacritic == .handakuten ? .none : .handakuten
-            }
-            Spacer()
-            SpecialKeyButton(label: "ー", theme: theme) { inputModel.insertText("ー") }
-            SpecialKeyButton(label: "、", theme: theme) { inputModel.insertText("、") }
-            SpecialKeyButton(label: "。", theme: theme) { inputModel.insertText("。") }
-        }
-    }
+    // ... modifierRowView ...
     
-    private func handleKanaSelection(_ kanaKey: KanaKey, _ diacritic: DiacriticType) {
-        let selectedKana = isSmallKanaMode ? kanaKey.smallKana : kanaKey.normalKana
-        let finalKana = KanaDiacriticConverter.apply(selectedKana, diacritic: diacritic)
+    private func handleKanaSelection(_ character: String, _ diacritic: DiacriticType) {
+        // Apply diacritic to the specifically selected character (flick result)
+        let finalKana = KanaDiacriticConverter.apply(character, diacritic: diacritic)
         inputModel.insertText(finalKana)
         
         if diacritic != .none {
@@ -218,28 +213,108 @@ struct KanaKeyButton: View {
     let isSmallKanaActive: Bool
     let activeDiacritic: DiacriticType
     let theme: KeyboardTheme
-    let onSelect: () -> Void
+    let onSelect: (String) -> Void
+    
+    // Flick State
+    @State private var dragOffset: CGSize = .zero
+    @State private var isFlicking: Bool = false
+    @State private var selectedDirection: FlickDirection = .none
+    
+    // Models
+    enum FlickDirection {
+        case none, up, down, left, right
+    }
+    
+    private let flickThreshold: CGFloat = 20.0
     
     var body: some View {
-        Button(action: onSelect) {
+        let activeLabel = key.centerDisplay // Simplified for now
+        
+        ZStack {
+            // Main Button Background
+            RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                .fill(isFlicking || selectedDirection != .none ? theme.backgroundColor.keyPressed : theme.backgroundColor.key)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
+                        .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
+                )
+            
+            // Center Character (Base)
             VStack(spacing: 1) {
-                let displayKana = isSmallKanaActive ? key.smallKana : key.normalKana
-                Text(displayKana)
+                Text(activeLabel)
                     .font(theme.typography.keyFont)
-                Text(key.base)
+                Text(key.subLabel)
                     .font(theme.typography.keyLabelFont)
                     .opacity(0.6)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .foregroundColor(theme.textColor.primary)
-            .background(theme.backgroundColor.key)
-            .cornerRadius(theme.dimensions.cornerRadius)
-            .overlay(
-                RoundedRectangle(cornerRadius: theme.dimensions.cornerRadius)
-                    .stroke(theme.borderColor.standard, lineWidth: theme.dimensions.borderWidth)
-            )
+            .opacity(selectedDirection == .none ? 1.0 : 0.3)
+            
+            // Flick Guides
+            if isFlicking {
+                FlickGuideView(key: key, direction: selectedDirection, theme: theme)
+            }
         }
         .frame(minHeight: theme.dimensions.keyHeight)
+        // ... gestures ...
+    }
+    
+    // ...
+    
+    private func triggerInput(direction: FlickDirection) {
+        let character: String
+        switch direction {
+        case .none: character = key.centerRomaji
+        case .up: character = key.upRomaji
+        case .down: character = key.downRomaji
+        case .left: character = key.leftRomaji
+        case .right: character = key.rightRomaji
+        }
+        
+        onSelect(character)
+    }
+    
+    private func resetState() {
+        isFlicking = false
+        dragOffset = .zero
+        selectedDirection = .none
+    }
+}
+
+// Helper View for Flick Guides
+struct FlickGuideView: View {
+    let key: KanaKey
+    let direction: KanaKeyButton.FlickDirection
+    let theme: KeyboardTheme
+    
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                // Up
+                if direction == .up || direction == .none {
+                    Text(key.upDisplay).position(x: geo.size.width/2, y: 10)
+                        .font(theme.typography.keyLabelFont)
+                        .foregroundColor(direction == .up ? theme.textColor.accent : theme.textColor.secondary)
+                }
+                // Down
+                if direction == .down || direction == .none {
+                    Text(key.downDisplay).position(x: geo.size.width/2, y: geo.size.height - 10)
+                        .font(theme.typography.keyLabelFont)
+                        .foregroundColor(direction == .down ? theme.textColor.accent : theme.textColor.secondary)
+                }
+                // Left
+                if direction == .left || direction == .none {
+                    Text(key.leftDisplay).position(x: 10, y: geo.size.height/2)
+                        .font(theme.typography.keyLabelFont)
+                        .foregroundColor(direction == .left ? theme.textColor.accent : theme.textColor.secondary)
+                }
+                // Right
+                if direction == .right || direction == .none {
+                    Text(key.rightDisplay).position(x: geo.size.width - 10, y: geo.size.height/2)
+                        .font(theme.typography.keyLabelFont)
+                        .foregroundColor(direction == .right ? theme.textColor.accent : theme.textColor.secondary)
+                }
+            }
+        }
     }
 }
 
