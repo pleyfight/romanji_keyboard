@@ -12,6 +12,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+        FA1E89B62F39E418001F81EF /* PBXContainerItemProxy */ = {
+            isa = PBXContainerItemProxy;
+            containerPortal = FA1E89A52F39E417001F81EF /* Project object */;
+            proxyType = 1;
+            remoteGlobalIDString = FA1E89B32F39E418001F81EF;
+            remoteInfo = "SpeakAny MessagesExtension";
+        };
         FAAACB192F3E2D9C0058AA11 /* PBXContainerItemProxy */ = {
             isa = PBXContainerItemProxy;
             containerPortal = FA1E89A52F39E417001F81EF /* Project object */;
@@ -94,7 +101,6 @@
             children = (
                 FA1E89AD2F39E417001F81EF /* SpeakAny */,
                 FA63B6192F3E13F20092036F /* Romaji Keyboard */,
-                FA1E89B82F39E418001F81EF /* Frameworks */,
                 FA1E89AC2F39E417001F81EF /* Products */,
                 FA63B6122F3E09DD0092036F /* RomajiKeyboardApp.swift */,
                 FA63B6132F3E09DF0092036F /* ContentView.swift */,
@@ -105,18 +111,9 @@
             isa = PBXGroup;
             children = (
                 FA1E89AB2F39E417001F81EF /* SpeakAny.app */,
-                FA1E89B42F39E418001F81EF /* SpeakAny MessagesExtension.appex */,
                 FA63B6182F3E13F20092036F /* Romaji Keyboard.appex */,
             );
             name = Products;
-            sourceTree = "<group>";
-        };
-        FA1E89B82F39E418001F81EF /* Frameworks */ = {
-            isa = PBXGroup;
-            children = (
-                FA1E89B92F39E418001F81EF /* Messages.framework */,
-            );
-            name = Frameworks;
             sourceTree = "<group>";
         };
 /* End PBXGroup section */
